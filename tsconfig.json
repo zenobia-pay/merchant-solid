@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "esnext",
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

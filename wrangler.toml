@@ -1,0 +1,6 @@
+name = "gucci-inspired-store"
+main = "worker/index.ts"
+compatibility_date = "2023-12-01"
+
+[site]
+bucket = "./dist"
