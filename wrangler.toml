@@ -1,4 +1,4 @@
-name = "gucci-inspired-store"
+name = "merchant-solid"
 main = "worker/index.ts"
 compatibility_date = "2023-12-01"
 
