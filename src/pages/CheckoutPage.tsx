@@ -243,8 +243,11 @@ const CheckoutPage: Component = () => {
             >
               <ZenobiaPaymentButton
                 amount={total()}
-                currency="USD"
-                description={`Order from ZENOBIA - ${cartItems().length} items`}
+                url="http://localhost:8787/create-transfer"
+                statementItems={cartItems().map((item) => ({
+                  name: item.product.name,
+                  amount: item.product.price * item.quantity,
+                }))}
                 buttonText="Pay with Zenobia"
                 buttonClass="w-full bg-black text-white py-3 text-sm uppercase tracking-wider hover:bg-gray-800"
                 onSuccess={handlePaymentSuccess}

@@ -8,6 +8,137 @@ interface KVNamespace {
 
 export interface Env {
   __STATIC_CONTENT: KVNamespace;
+  ZENOBIA_API_KEY?: string;
+}
+
+// Helper function to add CORS headers to a response
+function addCorsHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  headers.set("Access-Control-Max-Age", "86400"); // 24 hours
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function handleCreateTransfer(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  // Handle CORS preflight requests
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204, // No content
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400", // 24 hours
+      },
+    });
+  }
+
+  // Check if it's a POST request
+  if (request.method !== "POST") {
+    const errorResponse = new Response("Method not allowed", { status: 405 });
+    return addCorsHeaders(errorResponse);
+  }
+
+  try {
+    // Get the request body
+    const body = await request.json();
+
+    // Validate required fields
+    if (!body.amount || !Array.isArray(body.statementItems)) {
+      const errorResponse = new Response(
+        "Invalid request: missing required fields",
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      return addCorsHeaders(errorResponse);
+    }
+
+    // Forward the request to the Zenobia Pay API
+    const apiKey = env.ZENOBIA_API_KEY || "test_key";
+    try {
+      const apiResponse = await fetch("https://api.zenobiapay.com/transfers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          amount: body.amount,
+          statementItems: body.statementItems,
+          merchantId: "your-merchant-id", // Replace with actual merchant ID
+        }),
+      });
+
+      // Check if the response is ok
+      if (!apiResponse.ok) {
+        // Try to extract error message from response if it's JSON
+        let errorMessage = `API returned status ${apiResponse.status}`;
+        const contentType = apiResponse.headers.get("content-type");
+
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = await apiResponse.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            // If parsing fails, use the default error message
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      // Try to parse the JSON response
+      let data;
+      const contentType = apiResponse.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await apiResponse.json();
+      } else {
+        throw new Error("API did not return a JSON response");
+      }
+
+      // Return the response to the client with CORS headers
+      const response = new Response(JSON.stringify(data), {
+        status: apiResponse.status,
+        headers: { "Content-Type": "application/json" },
+      });
+      return addCorsHeaders(response);
+    } catch (apiError) {
+      console.error("API request failed:", apiError);
+      const errorResponse = new Response(
+        JSON.stringify({ error: apiError.message || "API request failed" }),
+        {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      return addCorsHeaders(errorResponse);
+    }
+  } catch (error) {
+    console.error("Error processing transfer request:", error);
+    const errorResponse = new Response(
+      JSON.stringify({ error: "Failed to process payment" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    return addCorsHeaders(errorResponse);
+  }
 }
 
 export default {
@@ -17,8 +148,14 @@ export default {
     ctx: { waitUntil(promise: Promise<any>): void }
   ): Promise<Response> {
     try {
-      // Get the asset from KV
       const url = new URL(request.url);
+
+      // Handle the create-transfer endpoint
+      if (url.pathname === "/create-transfer") {
+        return handleCreateTransfer(request, env);
+      }
+
+      // Get the asset from KV
       const response = await getAssetFromKV({
         request,
         waitUntil: ctx.waitUntil.bind(ctx),
