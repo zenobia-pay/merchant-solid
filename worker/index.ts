@@ -8,7 +8,8 @@ interface KVNamespace {
 
 export interface Env {
   __STATIC_CONTENT: KVNamespace;
-  ZENOBIA_API_KEY?: string;
+  ZENOBIA_CLIENT_ID?: string;
+  ZENOBIA_CLIENT_SECRET?: string;
 }
 
 // Helper function to add CORS headers to a response
@@ -27,6 +28,50 @@ function addCorsHeaders(response: Response): Response {
     statusText: response.statusText,
     headers,
   });
+}
+
+// Function to get an access token from Auth0
+async function getAccessToken(env: Env): Promise<string> {
+  try {
+    const tokenUrl = "https://dev-iols5y7cp32hlyr1.us.auth0.com/oauth/token";
+    const clientId = env.ZENOBIA_CLIENT_ID || "";
+    const clientSecret = env.ZENOBIA_CLIENT_SECRET || "";
+    console.log("clientId", clientId);
+    console.log("clientSecret", clientSecret);
+    const audience = "https://dashboard.zenobiapay.com";
+
+    // If using development/test mode and no credentials are provided
+    if (!clientId || !clientSecret) {
+      console.warn("No Auth0 credentials provided, using test mode");
+      return "test_token";
+    }
+
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        audience: audience,
+        grant_type: "client_credentials",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to get access token: ${response.status} ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    console.error("Error getting access token:", error);
+    throw new Error("Failed to authenticate with Auth0");
+  }
 }
 
 async function handleCreateTransfer(
@@ -69,20 +114,36 @@ async function handleCreateTransfer(
     }
 
     // Forward the request to the Zenobia Pay API
-    const apiKey = env.ZENOBIA_API_KEY || "test_key";
     try {
-      const apiResponse = await fetch("https://api.zenobiapay.com/transfers", {
-        method: "POST",
+      // Get access token from Auth0
+      const accessToken = await getAccessToken(env);
+
+      const fetchBody = {
+        amount: body.amount,
+        statementItems: body.statementItems,
+        bankAccountId: "bankAccount",
+      };
+
+      console.log("Making API request with:", {
+        url: "https://api.zenobiapay.com/create-transfer-request",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          amount: body.amount,
-          statementItems: body.statementItems,
-          merchantId: "your-merchant-id", // Replace with actual merchant ID
-        }),
+        body: fetchBody,
       });
+
+      const apiResponse = await fetch(
+        "https://api.zenobiapay.com/create-transfer-request",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(fetchBody),
+        }
+      );
 
       // Check if the response is ok
       if (!apiResponse.ok) {
