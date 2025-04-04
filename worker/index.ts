@@ -121,7 +121,6 @@ async function handleCreateTransfer(
       const fetchBody = {
         amount: body.amount,
         statementItems: body.statementItems,
-        bankAccountId: "bankAccount",
       };
 
       console.log("Making API request with:", {
