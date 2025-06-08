@@ -686,6 +686,7 @@ const CheckoutPage: Component = () => {
                     >
                       <ZenobiaPaymentButton
                         amount={calculateTotal()}
+                        isTest={true}
                         metadata={{
                           amount: calculateTotal(),
                           statementItems: items().map((item) => ({
