@@ -695,6 +695,7 @@ const CheckoutPage: Component = () => {
                               (item.color ? ` - ${item.color}` : "") +
                               (item.size ? ` - ${item.size}` : ""),
                             amount: item.product.price * item.quantity,
+                            metadata: item,
                           })),
                         }}
                         url={`${window.location.origin}/create-transfer`}

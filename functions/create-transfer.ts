@@ -108,9 +108,11 @@ async function handleCreateTransfer(
     try {
       const accessToken = await getAccessToken(env);
 
+      console.log(body);
       const fetchBody = {
         amount: body.amount,
         statementItems: body.statementItems,
+        transferMetadata: {},
       };
 
       const apiResponse = await fetch(
