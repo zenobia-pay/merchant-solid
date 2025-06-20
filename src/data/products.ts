@@ -7,7 +7,7 @@ const products: Product[] = [
     brand: "Prada",
     slug: { _type: "slug", current: "striped-bowling-shirt" },
     description: "Striped bowling shirt in cotton twill. Made in Italy.",
-    price: 172000,
+    price: 3200,
     imageUrl:
       "https://cdn-images.farfetch-contents.com/29/56/96/34/29569634_58557936_1000.jpg",
     secondaryImageUrl:
